@@ -1,0 +1,23 @@
+groups:
+  - name: interface_alerts
+    rules:
+
+      - alert: InterfaceDown
+        expr: ifOperStatus == 2
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Interface down on {{ $labels.instance }}"
+          description: "Interface {{ $labels.ifDescr }} is down on {{ $labels.instance }}"
+
+      - alert: LinkSaturated
+        expr: |
+          (rate(ifHCInOctets[5m]) + rate(ifHCOutOctets[5m])) * 8
+          / ifHighSpeed * 100 > 95
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Link saturated on {{ $labels.instance }}"
+          description: "Interface {{ $labels.ifDescr }} utilisation > 95% on {{ $labels.instance }}"

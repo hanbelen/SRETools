@@ -1,0 +1,12 @@
+groups:
+  - name: syslog_alerts
+    rules:
+
+      - alert: RouterCriticalLog
+        expr: syslog_messages_total{severity=~"critical|emergency"} > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical log on {{ $labels.instance }}"
+          description: "Router {{ $labels.instance }} generated a critical/emergency syslog message"

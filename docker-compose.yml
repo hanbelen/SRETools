@@ -1,0 +1,176 @@
+services:
+
+  # ── NetBox ──────────────────────────────────────────
+  netbox:
+    image: netboxcommunity/netbox:latest
+    platform: linux/amd64
+    ports:
+      - "8000:8080"
+    env_file: ./netbox/config/netbox.env
+    volumes:
+      - netbox-media:/opt/netbox/netbox/media
+    depends_on:
+      - netbox-postgres
+      - netbox-redis
+
+  netbox-postgres:
+    image: postgres:15
+    platform: linux/amd64
+    env_file: ./netbox/config/netbox.env
+    volumes:
+      - netbox-pgdata:/var/lib/postgresql/data
+
+  netbox-redis:
+    image: redis:7-alpine
+    platform: linux/amd64
+
+  # ── Jenkins ─────────────────────────────────────────
+  jenkins:
+    image: jenkins/jenkins:lts
+    platform: linux/amd64
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins-data:/var/jenkins_home
+      - ./jenkins/casc:/var/jenkins_home/casc_configs
+    environment:
+      - CASC_JENKINS_CONFIG=/var/jenkins_home/casc_configs
+
+  # ── Ansible ─────────────────────────────────────────
+  ansible:
+    image: cytopia/ansible:latest
+    platform: linux/amd64
+    volumes:
+      - ./ansible/playbooks:/ansible/playbooks
+    working_dir: /ansible/playbooks
+    entrypoint: ["tail", "-f", "/dev/null"]
+
+  # ── pyATS ───────────────────────────────────────────
+  pyats:
+    image: ciscotestautomation/pyats:latest
+    platform: linux/amd64
+    volumes:
+      - ./pyats/tests:/pyats/tests
+    working_dir: /pyats/tests
+    entrypoint: ["tail", "-f", "/dev/null"]
+
+  # ── Prometheus ──────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    platform: linux/amd64
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/config:/etc/prometheus
+      - prometheus-data:/prometheus
+
+  # ── Alertmanager ────────────────────────────────────
+  alertmanager:
+    image: prom/alertmanager:latest
+    platform: linux/amd64
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager/config:/etc/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+
+  # ── Grafana ─────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    platform: linux/amd64
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+
+  # ── Zammad ──────────────────────────────────────────
+  zammad-postgresql:
+    image: postgres:15
+    platform: linux/amd64
+    environment:
+      POSTGRES_DB: zammad
+      POSTGRES_USER: zammad
+      POSTGRES_PASSWORD: zammadpassword
+    volumes:
+      - zammad-pgdata:/var/lib/postgresql/data
+
+  zammad-memcached:
+    image: memcached:alpine
+    platform: linux/amd64
+    command: memcached -m 256M
+
+  zammad-elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+    platform: linux/amd64
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - zammad-esdata:/usr/share/elasticsearch/data
+
+  zammad-railsserver:
+    image: ghcr.io/zammad/zammad:latest
+    platform: linux/amd64
+    ports:
+      - "8090:8080"
+    depends_on:
+      - zammad-postgresql
+      - zammad-memcached
+      - zammad-elasticsearch
+    environment:
+      POSTGRESQL_HOST: zammad-postgresql
+      POSTGRESQL_DB: zammad
+      POSTGRESQL_USER: zammad
+      POSTGRESQL_PASS: zammadpassword
+      MEMCACHE_SERVERS: zammad-memcached:11211
+      ELASTICSEARCH_HOST: zammad-elasticsearch
+    volumes:
+      - zammad-data:/opt/zammad
+
+  zammad-scheduler:
+    image: ghcr.io/zammad/zammad:latest
+    platform: linux/amd64
+    command: zammad run scheduler
+    depends_on:
+      - zammad-railsserver
+    environment:
+      POSTGRESQL_HOST: zammad-postgresql
+      POSTGRESQL_DB: zammad
+      POSTGRESQL_USER: zammad
+      POSTGRESQL_PASS: zammadpassword
+      MEMCACHE_SERVERS: zammad-memcached:11211
+      ELASTICSEARCH_HOST: zammad-elasticsearch
+    volumes:
+      - zammad-data:/opt/zammad
+
+  zammad-websocket:
+    image: ghcr.io/zammad/zammad:latest
+    platform: linux/amd64
+    command: zammad run websocket
+    depends_on:
+      - zammad-railsserver
+    environment:
+      POSTGRESQL_HOST: zammad-postgresql
+      POSTGRESQL_DB: zammad
+      POSTGRESQL_USER: zammad
+      POSTGRESQL_PASS: zammadpassword
+      MEMCACHE_SERVERS: zammad-memcached:11211
+      ELASTICSEARCH_HOST: zammad-elasticsearch
+    volumes:
+      - zammad-data:/opt/zammad
+
+volumes:
+  netbox-media:
+  netbox-pgdata:
+  jenkins-data:
+  prometheus-data:
+  grafana-data:
+  zammad-pgdata:
+  zammad-data:
+  zammad-esdata:

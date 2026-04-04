@@ -1,0 +1,8 @@
+# Secrets
+netbox/config/netbox.env
+
+# macOS
+.DS_Store
+
+# Logs
+*.log

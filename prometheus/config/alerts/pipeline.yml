@@ -1,0 +1,12 @@
+groups:
+  - name: pipeline_alerts
+    rules:
+
+      - alert: JenkinsPipelineFailed
+        expr: jenkins_builds_failed_build_count > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Jenkins pipeline failed"
+          description: "Pipeline {{ $labels.job }} has failed builds on {{ $labels.instance }}"
