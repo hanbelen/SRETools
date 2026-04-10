@@ -1,11 +1,23 @@
-# Network automation agent for Jenkins pipelines
-# Extends cytopia/ansible with Python packages pre-installed
-FROM cytopia/ansible:latest
+# Use the official Jenkins Inbound Agent as the base
+FROM jenkins/inbound-agent:latest
 
 USER root
 
-# Install Python packages needed by pre_day1.py and validations
-RUN pip install --quiet --break-system-packages \
-        ncclient \
-        pynetbox \
-        paramiko
+# Install Ansible, Python, and build dependencies
+RUN apt-get update && apt-get install -y \
+    ansible \
+    python3 \
+    python3-pip \
+    python3-full \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install your specific network automation libraries
+RUN pip install --no-cache-dir --break-system-packages \
+    ncclient \
+    pynetbox \
+    paramiko \
+    pytest
+
+# Return to the jenkins user
+USER jenkins

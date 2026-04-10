@@ -1,0 +1,14 @@
+jenkins:
+  nodes:
+    - permanent:
+        labelString: "ansible-agent"
+        mode: NORMAL
+        name: "ansible-agent"
+        numExecutors: 2
+        remoteFS: "/home/jenkins/agent"
+        launcher:
+          inbound:
+            workDirSettings:
+              disabled: false
+              internalDir: "remoting"
+              failIfWorkDirIsMissing: false

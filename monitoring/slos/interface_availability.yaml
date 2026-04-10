@@ -1,0 +1,20 @@
+# Network Interface Availability SLO
+# Based on Google's SRE SLODLC principles.
+
+service: "core-network"
+slo:
+  - name: "interface-availability"
+    description: "All core network interfaces should have 99.9% availability."
+    sli:
+      description: "Ratio of successful SNMP polls (OperStatus=1) over total polls for core interfaces."
+      numerator: "count(ifOperStatus == 1)"
+      denominator: "count(ifOperStatus)"
+    target: 0.999
+    window: "28d"
+    alerting:
+      - name: "Slow Burn"
+        description: "Error budget consumption is too high over 24h"
+        threshold: 0.1 # 10% of budget
+      - name: "Fast Burn"
+        description: "Critical budget consumption over 1h"
+        threshold: 0.02 # 2% of budget
