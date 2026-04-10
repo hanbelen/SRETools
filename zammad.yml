@@ -1,0 +1,89 @@
+  # ── Zammad Redis ─────────────────────────────────────
+  zammad-redis:
+    image: redis:7.2-alpine
+    platform: linux/amd64
+    volumes:
+      - zammad-redis:/data
+
+  # ── Zammad Init ──────────────────────────────────────
+  zammad-init:
+    image: ghcr.io/zammad/zammad-docker-compose:latest
+    platform: linux/amd64
+    command: zammad-init
+    restart: on-failure
+    depends_on:
+      - zammad-postgresql
+      - zammad-elasticsearch
+      - zammad-redis
+      - zammad-memcached
+    environment:
+      MEMCACHE_SERVERS: zammad-memcached:11211
+      POSTGRESQL_HOST: zammad-postgresql
+      POSTGRESQL_DB: zammad_production
+      POSTGRESQL_USER: zammad
+      POSTGRESQL_PASS: zammadpassword
+      REDIS_URL: redis://zammad-redis:6379
+      ELASTICSEARCH_HOST: zammad-elasticsearch
+      ELASTICSEARCH_PORT: "9200"
+
+  # ── Zammad Railsserver ───────────────────────────────
+  zammad-railsserver:
+    image: ghcr.io/zammad/zammad-docker-compose:latest
+    platform: linux/amd64
+    command: zammad-railsserver
+    restart: unless-stopped
+    ports:
+      - "8090:3000"
+    depends_on:
+      - zammad-init
+    environment:
+      MEMCACHE_SERVERS: zammad-memcached:11211
+      POSTGRESQL_HOST: zammad-postgresql
+      POSTGRESQL_DB: zammad_production
+      POSTGRESQL_USER: zammad
+      POSTGRESQL_PASS: zammadpassword
+      REDIS_URL: redis://zammad-redis:6379
+      ELASTICSEARCH_HOST: zammad-elasticsearch
+      ELASTICSEARCH_PORT: "9200"
+    volumes:
+      - zammad-data:/opt/zammad-backup
+
+  # ── Zammad Scheduler ─────────────────────────────────
+  zammad-scheduler:
+    image: ghcr.io/zammad/zammad-docker-compose:latest
+    platform: linux/amd64
+    command: zammad-scheduler
+    restart: unless-stopped
+    depends_on:
+      - zammad-railsserver
+    environment:
+      MEMCACHE_SERVERS: zammad-memcached:11211
+      POSTGRESQL_HOST: zammad-postgresql
+      POSTGRESQL_DB: zammad_production
+      POSTGRESQL_USER: zammad
+      POSTGRESQL_PASS: zammadpassword
+      REDIS_URL: redis://zammad-redis:6379
+      ELASTICSEARCH_HOST: zammad-elasticsearch
+      ELASTICSEARCH_PORT: "9200"
+    volumes:
+      - zammad-data:/opt/zammad-backup
+
+  # ── Zammad Websocket ─────────────────────────────────
+  zammad-websocket:
+    image: ghcr.io/zammad/zammad-docker-compose:latest
+    platform: linux/amd64
+    command: zammad-websocket
+    restart: unless-stopped
+    depends_on:
+      - zammad-railsserver
+    environment:
+      MEMCACHE_SERVERS: zammad-memcached:11211
+      POSTGRESQL_HOST: zammad-postgresql
+      POSTGRESQL_DB: zammad_production
+      POSTGRESQL_USER: zammad
+      POSTGRESQL_PASS: zammadpassword
+      REDIS_URL: redis://zammad-redis:6379
+      ELASTICSEARCH_HOST: zammad-elasticsearch
+      ELASTICSEARCH_PORT: "9200"
+    volumes:
+      - zammad-data:/opt/zammad-backup

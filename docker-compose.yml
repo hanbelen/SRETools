@@ -34,6 +34,7 @@ services:
     volumes:
       - jenkins-data:/var/jenkins_home
       - ./jenkins/casc:/var/jenkins_home/casc_configs
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - CASC_JENKINS_CONFIG=/var/jenkins_home/casc_configs
 
@@ -93,7 +94,7 @@ services:
     image: postgres:15
     platform: linux/amd64
     environment:
-      POSTGRES_DB: zammad
+      POSTGRES_DB: zammad_production
       POSTGRES_USER: zammad
       POSTGRES_PASSWORD: zammadpassword
     volumes:
@@ -114,56 +115,90 @@ services:
     volumes:
       - zammad-esdata:/usr/share/elasticsearch/data
 
-  zammad-railsserver:
-    image: ghcr.io/zammad/zammad:latest
+  zammad-redis:
+    image: redis:7.2-alpine
     platform: linux/amd64
-    ports:
-      - "8090:8080"
+    volumes:
+      - zammad-redis:/data
+
+  zammad-init:
+    image: ghcr.io/zammad/zammad:7.0.0-0023
+    platform: linux/amd64
+    command: zammad-init
+    restart: on-failure
     depends_on:
       - zammad-postgresql
-      - zammad-memcached
       - zammad-elasticsearch
+      - zammad-redis
+      - zammad-memcached
     environment:
+      MEMCACHE_SERVERS: zammad-memcached:11211
       POSTGRESQL_HOST: zammad-postgresql
-      POSTGRESQL_DB: zammad
+      POSTGRESQL_DB: zammad_production
       POSTGRESQL_USER: zammad
       POSTGRESQL_PASS: zammadpassword
-      MEMCACHE_SERVERS: zammad-memcached:11211
+      REDIS_URL: redis://zammad-redis:6379
       ELASTICSEARCH_HOST: zammad-elasticsearch
+      ELASTICSEARCH_PORT: "9200"
+
+  zammad-railsserver:
+    image: ghcr.io/zammad/zammad:7.0.0-0023
+    platform: linux/amd64
+    command: zammad-railsserver
+    restart: unless-stopped
+    ports:
+      - "8090:3000"
+    depends_on:
+      - zammad-init
+    environment:
+      MEMCACHE_SERVERS: zammad-memcached:11211
+      POSTGRESQL_HOST: zammad-postgresql
+      POSTGRESQL_DB: zammad_production
+      POSTGRESQL_USER: zammad
+      POSTGRESQL_PASS: zammadpassword
+      REDIS_URL: redis://zammad-redis:6379
+      ELASTICSEARCH_HOST: zammad-elasticsearch
+      ELASTICSEARCH_PORT: "9200"
     volumes:
-      - zammad-data:/opt/zammad
+      - zammad-data:/opt/zammad-backup
 
   zammad-scheduler:
-    image: ghcr.io/zammad/zammad:latest
+    image: ghcr.io/zammad/zammad:7.0.0-0023
     platform: linux/amd64
-    command: zammad run scheduler
+    command: zammad-scheduler
+    restart: unless-stopped
     depends_on:
       - zammad-railsserver
     environment:
+      MEMCACHE_SERVERS: zammad-memcached:11211
       POSTGRESQL_HOST: zammad-postgresql
-      POSTGRESQL_DB: zammad
+      POSTGRESQL_DB: zammad_production
       POSTGRESQL_USER: zammad
       POSTGRESQL_PASS: zammadpassword
-      MEMCACHE_SERVERS: zammad-memcached:11211
+      REDIS_URL: redis://zammad-redis:6379
       ELASTICSEARCH_HOST: zammad-elasticsearch
+      ELASTICSEARCH_PORT: "9200"
     volumes:
-      - zammad-data:/opt/zammad
+      - zammad-data:/opt/zammad-backup
 
   zammad-websocket:
-    image: ghcr.io/zammad/zammad:latest
+    image: ghcr.io/zammad/zammad:7.0.0-0023
     platform: linux/amd64
-    command: zammad run websocket
+    command: zammad-websocket
+    restart: unless-stopped
     depends_on:
       - zammad-railsserver
     environment:
+      MEMCACHE_SERVERS: zammad-memcached:11211
       POSTGRESQL_HOST: zammad-postgresql
-      POSTGRESQL_DB: zammad
+      POSTGRESQL_DB: zammad_production
       POSTGRESQL_USER: zammad
       POSTGRESQL_PASS: zammadpassword
-      MEMCACHE_SERVERS: zammad-memcached:11211
+      REDIS_URL: redis://zammad-redis:6379
       ELASTICSEARCH_HOST: zammad-elasticsearch
+      ELASTICSEARCH_PORT: "9200"
     volumes:
-      - zammad-data:/opt/zammad
+      - zammad-data:/opt/zammad-backup
 
 volumes:
   netbox-media:
@@ -172,5 +207,6 @@ volumes:
   prometheus-data:
   grafana-data:
   zammad-pgdata:
-  zammad-data:
   zammad-esdata:
+  zammad-redis:
+  zammad-data:
