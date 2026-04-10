@@ -1,5 +1,5 @@
 # Network automation agent for Jenkins pipelines
-# Extends cytopia/ansible with Python packages pre-installed as root
+# Extends cytopia/ansible with Python packages pre-installed
 FROM cytopia/ansible:latest
 
 USER root
@@ -9,5 +9,3 @@ RUN pip install --quiet --break-system-packages \
         ncclient \
         pynetbox \
         paramiko
-
-USER ansible
