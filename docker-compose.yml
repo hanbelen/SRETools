@@ -34,13 +34,15 @@ services:
     volumes:
       - jenkins-data:/var/jenkins_home
       - ./jenkins/casc:/var/jenkins_home/casc_configs
-      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - CASC_JENKINS_CONFIG=/var/jenkins_home/casc_configs
 
-  # ── Ansible ─────────────────────────────────────────
+  # ── Ansible / Jenkins agent ─────────────────────────
   ansible:
-    image: cytopia/ansible:latest
+    build:
+      context: ./jenkins/agent
+      dockerfile: Dockerfile
+    image: network-agent:latest
     platform: linux/amd64
     volumes:
       - ./ansible/playbooks:/ansible/playbooks
